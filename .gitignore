@@ -1,0 +1,16 @@
+# Ignore pdf
+*.pdf
+
+# Ignore txt
+*.txt
+
+# Ignore temporary system files
+.DS_Store
+Thumbs.db
+
+# Ignora file di log
+*.log
+
+# Ignora file Python bytecode
+__pycache__/
+*.pyc
