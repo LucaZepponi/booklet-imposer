@@ -3,6 +3,8 @@
 
 # Ignore txt
 *.txt
+# but do not ignore
+!requirements.txt
 
 # Ignore temporary system files
 .DS_Store

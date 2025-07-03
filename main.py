@@ -20,12 +20,12 @@ class BookletImposer:
 
     Args:
       input_path (str): .pdf file path.
-        output_folder (str): Output's folder path.
-        fogli_per_blocco (int, optional): Number of sheets to be used to complete a file. Defaults to 5.
-        prefix (str, optional): Name to be used to save the various files. Defaults to 'file'.
+      output_folder (str): Output's folder path.
+      fogli_per_blocco (int, optional): Number of sheets to be used to complete a file. Defaults to 5.
+      prefix (str, optional): Name to be used to save the various files. Defaults to 'file'.
 
     Raises:
-        RuntimeError: If the user cancels entering the password for a protected PDF.
+      RuntimeError: If the user cancels entering the password for a protected PDF.
     """
     # Class attributes
     self.input_path = Path(input_path)       # Path of the .pdf file to be reorganised
@@ -50,20 +50,26 @@ class BookletImposer:
     self.pagine_per_blocco = self.fogli_per_blocco * 4 # Number of pages per file
     # Each sheet corresponds to 4 double-sided printable pages (2 per side)
     self.prefix = prefix # Useful prefix to save the various files
+    self.all_pages_with_blanks = self.add_blank_pages() # List of all pages in the PDF with also blank pages
+    self.total_pages_with_blanks = len(self.all_pages_with_blanks) # Total number of pages after adding blank pages
     
-  def add_blank_pages(self, pages: list, pagine_per_blocco: int) -> list:
+  def add_blank_pages(self) -> list:
     """It adds as many `None` pages as necessary so that the last booklet consists of the same number of pages as the others.
-
-    Args:
-      pages (list[PageObject]): Page range of the original PDF to be included in the same file.
-      pagine_per_blocco (int): Exact number of pages each block must consist of.
 
     Returns:
       pages (list): New list of pages in the PDF with an appropriate number of blank pages added at the bottom to complete the file.
     """
-    # Adds one `None` page at a time until `pages` has the exact number of pages it needs
-    while len(pages) < pagine_per_blocco:
-      pages.append(None) # Adds an `None` PDF page at the end of the list
+    # Transforms the pages of the original PDF into a list
+    pages = list(self.reader.pages)
+    # Extracts the number of pages of the original PDF
+    total_original_pages = len(pages)
+    # Calculate how many blank pages are to be added
+    remainder = total_original_pages % self.pagine_per_blocco
+    # If there are pages to be added, ...
+    if remainder != 0:
+      # ... he adds
+      for _ in range(self.pagine_per_blocco - remainder):
+        pages.append(None)
     return pages
   
   
@@ -110,7 +116,6 @@ class BookletImposer:
 
     For the `i`-th block:
     - Selects the corresponding pages.
-    - Adds any blank pages to complete the block (if necessary).
     - Rearranges the pages in the order of imposition.
     - Generates a new PDF file ready for double-sided printing.
     - Also saves a .txt file with general information about the document.
@@ -120,21 +125,15 @@ class BookletImposer:
     """
     # Page range calculation: determines the page range of which the block `i` is composed.
     start = i * self.pagine_per_blocco
-    end = min(start + self.pagine_per_blocco, self.total_pages_original)
-    # Using `min(...)` avoids indexing errors if the last block has fewer pages than expected
-    # Removing `min(...)` may lead to an `IndexError` if `total_pages_original` is not an exact multiple of `pages_per_block`.
+    end = start + self.pagine_per_blocco
     
     # Extracts pages by building a kind of `PyPDF2` list
-    pages = [self.reader.pages[j] for j in range(start, end)]
-    # self.reader.pages[start:end] could lead to an error because `pages` is not a real list, but a `PyPDF2` object
+    temp_pages = self.all_pages_with_blanks[start:end]
     
-    # TODO : Questo lo si potrebbe mettere all'inizio: il numero di pagine bianche richiesto è sempre lo stesso e viene calcolato solo nell'ultimo blocco
-    # Add blank pages if necessary
-    pages = self.add_blank_pages(pages, self.pagine_per_blocco)
-    # I order by imposition
-    ordered_pages = self.imposition_order(pages)
+    # Rearranging the pages according to the logic of booklet printing
+    ordered_pages = self.imposition_order(temp_pages)
     
-    # Inserts blank pages
+    # Turns `None` pages into blank pages
     writer = PdfWriter()
     for page in ordered_pages:
       if page is None:
@@ -243,6 +242,8 @@ class BookletImposer:
 
       It extracts data from the input fields (PDF file, output folder, number of pages per booklet, prefix), validates user-supplied input, and in cases of correctness proceeds with booklet generation via the `BookletImposer` class.
 
+      It adds the appropriate number of `None` pages to ensure that all files that will be created have the same size.
+      
       During processing, it updates the progressbar to provide visual feedback, handles any errors by displaying dialog boxes, and sets the cursor to 'wait' to indicate to the user that the operation is in progress.
 
       If an error occurs (invalid input, non-existent file, exceptions during processing), an error message is displayed and the process is aborted without stopping the GUI.
@@ -284,12 +285,15 @@ class BookletImposer:
         imposer = BookletImposer(input_pdf, output_folder, pages, prefix)
         
         # Calculate the total number of files to be created
-        total_blocks = (imposer.total_pages_original + imposer.pagine_per_blocco - 1) // imposer.pagine_per_blocco
+        total_blocks = (imposer.total_pages_with_blanks + imposer.pagine_per_blocco - 1) // imposer.pagine_per_blocco
         
         # Configure the progress bar with the maximum number of blocks
         progress["maximum"] = total_blocks
         # and initialise progress to 0
         progress["value"] = 0
+        
+        # Add `None` pages
+        imposer.add_blank_pages()
         
         # Cycle to process each block and update the progress bar
         for i in range(total_blocks):
