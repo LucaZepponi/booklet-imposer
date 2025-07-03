@@ -50,10 +50,10 @@ pip install -r requirements.txt
 
 
 ## 💡 Usage
-💻 Esecuzione dell'applicazione
-1. Assicurati di avere Python ≥ 3.8 installato nel sistema
-2. Installare le dipendenze richieste (vedi sezione 🛠️ Installation)
-3. Avvia il programma:
+💻 Running the application
+1. Make sure you have Python ≥ 3.8 installed on your system
+2. Install the required dependencies (see section 🛠️ Installation)
+3. Start the programme:
 ```bash
 python main.py
 ```
