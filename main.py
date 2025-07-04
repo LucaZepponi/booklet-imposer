@@ -50,7 +50,7 @@ class BookletImposer:
     self.pagine_per_blocco = self.fogli_per_blocco * 4 # Number of pages per file
     # Each sheet corresponds to 4 double-sided printable pages (2 per side)
     self.prefix = prefix # Useful prefix to save the various files
-    self.all_pages_with_blanks = self.add_blank_pages() # List of all pages in the PDF with also blank pages
+    self.all_pages_with_blanks = [] # List of all pages in the PDF with also blank pages # TODO : Probabilmente può essere eliminato. Posso sovrascrivere tutto in total_pages_original
     self.total_pages_with_blanks = len(self.all_pages_with_blanks) # Total number of pages after adding blank pages
     
   def add_blank_pages(self) -> list:
@@ -60,7 +60,8 @@ class BookletImposer:
       pages (list): New list of pages in the PDF with an appropriate number of blank pages added at the bottom to complete the file.
     """
     # Transforms the pages of the original PDF into a list
-    pages = list(self.reader.pages)
+    # pages = list(self.reader.pages) is not good, because I need to access the currently saved pages, so the version with the `None` pages
+    pages = list(self.all_pages_with_blanks)
     # Extracts the number of pages of the original PDF
     total_original_pages = len(pages)
     # Calculate how many blank pages are to be added
@@ -284,6 +285,20 @@ class BookletImposer:
         # Creation of the BookletImposer instance with user-supplied parameters
         imposer = BookletImposer(input_pdf, output_folder, pages, prefix)
         
+        # Overwrites the pages of the imposer with the new list
+        pagine_modificate = list(imposer.reader.pages)
+        
+        # I will now add two start pages and two more end pages in order to insert a hardcover
+        pagine_modificate = [None, None] + pagine_modificate + [None, None]
+        
+        # I update the pages in the imposer
+        imposer.all_pages_with_blanks = pagine_modificate
+        imposer.total_pages_with_blanks = len(imposer.all_pages_with_blanks)
+        
+        # Adding additional blank pages to close the last file
+        imposer.all_pages_with_blanks = imposer.add_blank_pages()
+        imposer.total_pages_with_blanks = len(imposer.all_pages_with_blanks)
+
         # Calculate the total number of files to be created
         total_blocks = (imposer.total_pages_with_blanks + imposer.pagine_per_blocco - 1) // imposer.pagine_per_blocco
         
@@ -291,9 +306,6 @@ class BookletImposer:
         progress["maximum"] = total_blocks
         # and initialise progress to 0
         progress["value"] = 0
-        
-        # Add `None` pages
-        imposer.add_blank_pages()
         
         # Cycle to process each block and update the progress bar
         for i in range(total_blocks):
